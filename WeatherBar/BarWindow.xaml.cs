@@ -40,6 +40,14 @@ public partial class BarWindow : Window
         Native.MakeToolWindow(_hwnd, noActivate: true);
 
         _settings = Settings.Load();
+        // The small symbol moves too, at 30 frames a second to go easy on the computer,
+        // and only while the bar is showing (not during full-screen games).
+        _symbol = new SymbolMotion(IconText, distance: 0.5, frameRate: 30);
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible) _symbol.Start(_motion);
+            else _symbol.Stop();
+        };
         _popup = new ForecastPopup();
         _popup.PlaceChosen += OnPlaceChosen;
         // Signing out or shutting down Windows must be able to close everything.
@@ -162,6 +170,8 @@ public partial class BarWindow : Window
         }
         IconText.Visibility = look is null ? Visibility.Collapsed : Visibility.Visible;
         TempText.Text = temp;
+        _motion = look?.Motion;
+        if (IsVisible) _symbol.Start(_motion);
         UpdatePlacement(); // the bar's width follows its text
     }
 
@@ -169,6 +179,8 @@ public partial class BarWindow : Window
     private WeatherLook? _pendingLook;
     private string _pendingTemp = "";
     private readonly TranslateTransform _contentShift = new();
+    private readonly SymbolMotion _symbol;
+    private IconMotion? _motion;
 
     /// <summary>The old reading slides up and fades out, then the new one rises in from below.</summary>
     private void SwapBar(WeatherLook? look, string temp)

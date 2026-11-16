@@ -27,13 +27,12 @@ public partial class ForecastPopup : Window
     private bool _choosingCity;
     private CancellationTokenSource? _searchCts;
     private IconMotion? _motion;
-    private readonly RotateTransform _iconTurn = new();
-    private readonly TranslateTransform _iconMove = new();
+    private readonly SymbolMotion _symbol;
 
     public ForecastPopup()
     {
         InitializeComponent();
-        NowIcon.RenderTransform = new TransformGroup { Children = { _iconTurn, _iconMove } };
+        _symbol = new SymbolMotion(NowIcon, distance: 1, frameRate: null);
         Native.MakeToolWindow(new WindowInteropHelper(this).EnsureHandle(), noActivate: false);
         Deactivated += (_, _) => HideAnimated();
         // Alt+F4 would destroy the window for good; just hide it unless the app is quitting.
@@ -53,10 +52,10 @@ public partial class ForecastPopup : Window
             // The symbol only moves while you can see it.
             if (IsVisible)
             {
-                StartIconMotion();
+                _symbol.Start(_motion);
                 return;
             }
-            StopIconMotion();
+            _symbol.Stop();
             _searchCts?.Cancel();
             CityBox.Clear();
             PlaceList.ItemsSource = null;
@@ -80,7 +79,7 @@ public partial class ForecastPopup : Window
         {
             ClearForecast();
             _motion = null;
-            StopIconMotion();
+            _symbol.Stop();
             MessageText.Text = error ?? "Loading...";
             MessageText.Visibility = _hasCity ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -106,7 +105,7 @@ public partial class ForecastPopup : Window
             if (_motion != look.Motion)
             {
                 _motion = look.Motion;
-                if (IsVisible) StartIconMotion();
+                if (IsVisible) _symbol.Start(_motion);
             }
             // The forecast just arrived while you're looking (e.g. a new city): bring the rows in.
             if (!hadRows && IsVisible) AnimateRowsSoon();
@@ -277,58 +276,6 @@ public partial class ForecastPopup : Window
         animation.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(delay)));
         animation.KeyFrames.Add(new EasingDoubleKeyFrame(to, KeyTime.FromTimeSpan(end), new CubicEase { EasingMode = EasingMode.EaseOut }));
         return animation;
-    }
-
-    /// <summary>
-    /// Gentle, endless movement for the big symbol: the sun turns slowly, the moon rocks,
-    /// clouds drift sideways, and rain, snow and storms bob up and down.
-    /// </summary>
-    private void StartIconMotion()
-    {
-        StopIconMotion();
-        if (_motion is not { } motion) return;
-        NowIcon.RenderTransformOrigin = InkCenter();
-        var sine = new SineEase { EasingMode = EasingMode.EaseInOut };
-        DoubleAnimation Swing(double from, double to, double seconds) =>
-            new(from, to, TimeSpan.FromSeconds(seconds)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = sine };
-
-        switch (motion)
-        {
-            case IconMotion.Spin:
-                _iconTurn.BeginAnimation(RotateTransform.AngleProperty,
-                    new DoubleAnimation(0, 360, TimeSpan.FromSeconds(24)) { RepeatBehavior = RepeatBehavior.Forever });
-                break;
-            case IconMotion.Rock:
-                _iconTurn.BeginAnimation(RotateTransform.AngleProperty, Swing(-8, 8, 2.5));
-                break;
-            case IconMotion.Drift:
-                _iconMove.BeginAnimation(TranslateTransform.XProperty, Swing(-3, 3, 3));
-                break;
-            case IconMotion.Bob:
-                _iconMove.BeginAnimation(TranslateTransform.YProperty, Swing(-2, 2, 1.2));
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Where the symbol's drawing actually sits within its text box (as fractions). Symbols aren't
-    /// centered in the box, so turning around the box center would make the sun wobble in a circle.
-    /// </summary>
-    private Point InkCenter()
-    {
-        var text = new FormattedText(NowIcon.Text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-            new Typeface(NowIcon.FontFamily, NowIcon.FontStyle, NowIcon.FontWeight, NowIcon.FontStretch),
-            NowIcon.FontSize, Brushes.White, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-        var ink = text.BuildGeometry(new Point(0, 0)).Bounds;
-        if (ink.IsEmpty || text.Width <= 0 || text.Height <= 0) return new Point(0.5, 0.5);
-        return new Point((ink.Left + ink.Right) / 2 / text.Width, (ink.Top + ink.Bottom) / 2 / text.Height);
-    }
-
-    private void StopIconMotion()
-    {
-        _iconTurn.BeginAnimation(RotateTransform.AngleProperty, null);
-        _iconMove.BeginAnimation(TranslateTransform.XProperty, null);
-        _iconMove.BeginAnimation(TranslateTransform.YProperty, null);
     }
 
     // ---------- Opening and closing ----------
