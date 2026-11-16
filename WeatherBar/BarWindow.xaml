@@ -14,8 +14,11 @@
       </ContextMenu>
     </Border.ContextMenu>
     <StackPanel x:Name="BarContent" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-      <TextBlock x:Name="IconText" FontFamily="{StaticResource WeatherFont}" FontSize="16"
-                 VerticalAlignment="Center" Margin="0,0,6,0" Visibility="Collapsed" />
+      <!-- The holder grows a little on hover; the symbol inside keeps its own gentle motion -->
+      <Border x:Name="IconHolder" VerticalAlignment="Center">
+        <TextBlock x:Name="IconText" FontFamily="{StaticResource WeatherFont}" FontSize="16"
+                   VerticalAlignment="Center" Margin="0,0,6,0" Visibility="Collapsed" />
+      </Border>
       <!-- Nudged up 1px to line up with the symbol -->
       <TextBlock x:Name="TempText" Text="--" FontSize="13" FontWeight="SemiBold"
                  Foreground="{StaticResource TextPrimary}" VerticalAlignment="Center">

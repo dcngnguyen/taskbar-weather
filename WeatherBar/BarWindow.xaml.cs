@@ -38,6 +38,7 @@ public partial class BarWindow : Window
         InitializeComponent();
         _hwnd = new WindowInteropHelper(this).EnsureHandle();
         Native.MakeToolWindow(_hwnd, noActivate: true);
+        HoverGlow.Attach(Bar, IconHolder);
 
         _settings = Settings.Load();
         // The small symbol moves too, at 30 frames a second to go easy on the computer,
